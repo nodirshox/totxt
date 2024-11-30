@@ -1,8 +1,8 @@
-# 🖥️ totxt: Source Code Repository to Single Text File
+# 🖥️ totxt: Source Code Repository to Single Text File (LLM SpoonFeed txt)
 
 ## 🌟 Overview
 
-**totxt** is a Python CLI tool designed to extract source code files from a repository and consolidate them into a single, comprehensive text file. It respects `.gitignore` patterns, filters out unnecessary files, and ensures accurate encoding detection for seamless processing.
+**totxt** is a Python CLI tool designed to extract source code files from a repository and consolidate them into a single, comprehensive text file (To feed into LLMs). It respects `.gitignore` patterns, filters out unnecessary files, and ensures accurate encoding detection for seamless processing.
 
 ## ✨ Features
 
