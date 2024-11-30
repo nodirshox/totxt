@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 
 import os
-import argparse
-from pathlib import Path
 import logging
-
+from pathlib import Path
 import chardet
+import typer
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.progress import (
@@ -13,6 +12,7 @@ from rich.progress import (
     TaskProgressColumn, TimeRemainingColumn
 )
 
+app = typer.Typer()
 
 class SourceCodeConverter:
     """
@@ -170,25 +170,22 @@ class SourceCodeConverter:
                 self.logger.error(f"Error during conversion: {e}")
 
 
-def main():
+@app.command()
+def convert(
+    repo_path: Path = typer.Argument(..., help="Path to the repository"),
+    max_size: int = typer.Option(100, help="Maximum file size in KB"),
+    output: Path = typer.Option(None, help="Custom output filename"),
+    verbose: bool = typer.Option(False, help="Enable verbose logging")
+):
     """
-    CLI entry point for the source code converter.
+    Convert source code files in a repository into a single output file.
     """
-    parser = argparse.ArgumentParser(
-        description="Source Code Converter with .gitignore support"
-    )
-    parser.add_argument('repo_path', type=Path, help='Path to the repository')
-    parser.add_argument('--max-size', type=int, default=100, help='Maximum file size in KB')
-    parser.add_argument('--output', type=Path, help='Custom output filename')
-    parser.add_argument('--verbose', action='store_true', help='Enable verbose logging')
+    log_level = logging.DEBUG if verbose else logging.INFO
+    output_file = output or Path(f"{repo_path.name}output.txt")
 
-    args = parser.parse_args()
-    log_level = logging.DEBUG if args.verbose else logging.INFO
-    output_file = args.output or Path(f"{args.repo_path.name}_output.txt")
-
-    converter = SourceCodeConverter(max_file_size=args.max_size, log_level=log_level)
-    converter.convert_repository(args.repo_path, output_file)
+    converter = SourceCodeConverter(max_file_size=max_size, log_level=log_level)
+    converter.convert_repository(repo_path, output_file)
 
 
-if __name__ == '__main__':
-    main()
+if __name__ == "__main__":
+    app()
