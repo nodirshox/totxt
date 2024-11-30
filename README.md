@@ -1,4 +1,4 @@
-# 🖥️ totxt: Source Code Repository to Single Text File (LLM SpoonFeed txt)
+# 🖥️ totxt: Code Repository to Single .txt File (For Feeding LLMs)
 
 ## 🌟 Overview
 
