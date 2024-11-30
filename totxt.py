@@ -181,7 +181,7 @@ def convert(
     Convert source code files in a repository into a single output file.
     """
     log_level = logging.DEBUG if verbose else logging.INFO
-    output_file = output or Path(f"{repo_path.name}output.txt")
+    output_file = output or Path(f"{repo_path.name}_output.txt")
 
     converter = SourceCodeConverter(max_file_size=max_size, log_level=log_level)
     converter.convert_repository(repo_path, output_file)
