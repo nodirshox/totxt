@@ -1,4 +1,3 @@
 chardet
 rich
 typer
-gitpython
