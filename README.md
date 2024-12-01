@@ -1,5 +1,8 @@
 # 🖥 totxt: Code Repository to Single .txt File
 
+> [!NOTE]
+> You must have Python, pip & Git in your system.
+
 > [!TIP]
 > 🤖 Feed your LLM a single txt file to give it full & direct context of your codebase.
 

@@ -2,9 +2,11 @@
 
 import os
 import logging
+import tempfile
 from pathlib import Path
 import chardet
 import typer
+import subprocess
 from rich.console import Console
 from rich.logging import RichHandler
 from rich.progress import (
@@ -16,18 +18,11 @@ app = typer.Typer()
 
 class SourceCodeConverter:
     """
-    A utility to convert source code files in a repository into a single text file, 
+    A utility to convert source code files in a repository into a single text file,
     respecting the .gitignore and excluding unnecessary files.
     """
 
-    def __init__(self, max_file_size=100, log_level=logging.INFO):
-        """
-        Initialize the source code converter with configurable file size limits and logging.
-        
-        Args:
-            max_file_size (int): Maximum size of files to process (in KB).
-            log_level (int): Logging level (e.g., INFO, DEBUG).
-        """
+    def __init__(self, max_file_size: int = 100, log_level: int = logging.INFO):
         logging.basicConfig(
             level=log_level,
             format="%(message)s",
@@ -35,18 +30,12 @@ class SourceCodeConverter:
             handlers=[RichHandler(rich_tracebacks=True)]
         )
         self.logger = logging.getLogger("SourceCodeConverter")
-        self.max_file_size = max_file_size * 1024  # Convert KB to bytes
+        self.max_file_size = max_file_size * 1024  # KB to bytes
         self.exclude_dirs = {'.git', 'node_modules', '.venv', 'venv', '__pycache__', 'dist', 'build'}
         self.gitignore_patterns = set()
         self.console = Console()
 
-    def load_gitignore(self, repo_path):
-        """
-        Load .gitignore patterns from the repository if it exists.
-        
-        Args:
-            repo_path (Path): Path to the repository's root.
-        """
+    def load_gitignore(self, repo_path: Path):
         gitignore_file = repo_path / ".gitignore"
         if gitignore_file.is_file():
             with open(gitignore_file, 'r') as f:
@@ -55,30 +44,11 @@ class SourceCodeConverter:
                     if stripped and not stripped.startswith('#'):
                         self.gitignore_patterns.add(stripped)
 
-    def is_ignored(self, file_path, repo_path):
-        """
-        Check if a file should be ignored based on .gitignore patterns.
-        
-        Args:
-            file_path (Path): The full path to the file.
-            repo_path (Path): The root path of the repository.
-
-        Returns:
-            bool: True if the file matches any .gitignore pattern, False otherwise.
-        """
+    def is_ignored(self, file_path: Path, repo_path: Path) -> bool:
         rel_path = file_path.relative_to(repo_path)
         return any(rel_path.match(pattern) for pattern in self.gitignore_patterns)
 
-    def is_text_file(self, file_path):
-        """
-        Determine if a file is a text file based on its content and size.
-        
-        Args:
-            file_path (Path): The full path to the file.
-
-        Returns:
-            bool: True if the file is a text file, False otherwise.
-        """
+    def is_text_file(self, file_path: Path) -> bool:
         try:
             if os.path.getsize(file_path) > self.max_file_size:
                 return False
@@ -90,34 +60,16 @@ class SourceCodeConverter:
             self.logger.warning(f"Error checking file {file_path}: {e}")
             return False
 
-    def detect_encoding(self, file_path):
-        """
-        Detect the encoding of a file using the chardet library.
-        
-        Args:
-            file_path (Path): The full path to the file.
-
-        Returns:
-            str: The detected encoding or 'utf-8' as a fallback.
-        """
+    def detect_encoding(self, file_path: Path) -> str:
         try:
             with open(file_path, 'rb') as file:
-                raw_data = file.read(10000)  # Read the first 10KB of data
+                raw_data = file.read(10000)
                 result = chardet.detect(raw_data)
                 return result['encoding'] or 'utf-8'
         except Exception:
             return 'utf-8'
 
-    def read_source_file(self, file_path):
-        """
-        Read the contents of a source file with the appropriate encoding.
-        
-        Args:
-            file_path (Path): The full path to the source file.
-
-        Returns:
-            str: The content of the file or an empty string on failure.
-        """
+    def read_source_file(self, file_path: Path) -> str:
         try:
             encoding = self.detect_encoding(file_path)
             with open(file_path, 'r', encoding=encoding, errors='ignore') as file:
@@ -126,14 +78,7 @@ class SourceCodeConverter:
             self.logger.warning(f"Error reading {file_path}: {e}")
             return ""
 
-    def convert_repository(self, repo_path, output_path):
-        """
-        Convert all eligible source files in the repository into a single output text file.
-        
-        Args:
-            repo_path (Path): The root path of the repository to process.
-            output_path (Path): The path to the output text file.
-        """
+    def convert_repository(self, repo_path: Path, output_path: Path):
         self.load_gitignore(repo_path)
         with Progress(
             SpinnerColumn(), TextColumn("[progress.description]{task.description}"),
@@ -169,23 +114,31 @@ class SourceCodeConverter:
             except Exception as e:
                 self.logger.error(f"Error during conversion: {e}")
 
+    def clone_and_convert(self, repo_url: str, output_path: Path):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_path = Path(temp_dir)
+            subprocess.run(["git", "clone", repo_url, str(temp_path)], check=True)
+            self.convert_repository(temp_path, output_path)
+
 
 @app.command()
 def convert(
-    repo_path: Path = typer.Argument(..., help="Path to the repository"),
-    max_size: int = typer.Option(100, help="Maximum file size in KB"),
-    output: Path = typer.Option(None, help="Custom output filename"),
-    verbose: bool = typer.Option(False, help="Enable verbose logging")
+    repo_path: str = typer.Argument(..., help="Local path or GitHub repository URL."),
+    max_size: int = typer.Option(100, help="Maximum file size in KB."),
+    output: Path = typer.Option(None, help="Custom output filename."),
+    verbose: bool = typer.Option(False, help="Enable verbose logging.")
 ):
-    """
-    Convert source code files in a repository into a single output file.
-    """
+    """Convert source code from a local path or GitHub repo into a single text file."""
     log_level = logging.DEBUG if verbose else logging.INFO
-    output_file = output or Path(f"{repo_path.name}_output.txt")
+    output_file = output or Path(f"{Path(repo_path).stem}_output.txt")
 
     converter = SourceCodeConverter(max_file_size=max_size, log_level=log_level)
-    converter.convert_repository(repo_path, output_file)
 
+    if "github.com" in repo_path:
+        converter.console.print("[bold blue]Processing GitHub repository...[/]")
+        converter.clone_and_convert(repo_path, output_file)
+    else:
+        converter.convert_repository(Path(repo_path), output_file)
 
 if __name__ == "__main__":
     app()
